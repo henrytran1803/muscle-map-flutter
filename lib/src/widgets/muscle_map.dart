@@ -45,20 +45,28 @@ class MuscleMap extends StatefulWidget {
 class _MuscleMapState extends State<MuscleMap> {
   MuscleGroup? _hoveredGroup;
   MuscleGroup? _selectedGroup;
+  Offset _tooltipPosition = Offset.zero;
+  final GlobalKey _figureKey = GlobalKey();
+
+  MuscleGroup? get _activeGroup => _selectedGroup ?? _hoveredGroup;
+
+  MuscleMapValue? _resolveValue(MuscleGroup group) {
+    return widget.values[group];
+  }
 
   @override
   Widget build(BuildContext context) {
     final diagram = getBodyDiagram(widget.sex, widget.view);
     final visibleGroups = getVisibleMuscleGroups(view: widget.view);
-    final activeGroup = _selectedGroup ?? _hoveredGroup;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Stack(
           children: [
+            // Body figure
             BodyFigure(
+              key: _figureKey,
               diagram: diagram,
               values: widget.values,
               partValues: widget.partValues,
@@ -66,20 +74,34 @@ class _MuscleMapState extends State<MuscleMap> {
               monochromeColor: widget.monochromeColor,
               monochromeBaseColor: widget.monochromeBaseColor,
               visibleGroups: visibleGroups.toSet(),
-              activeGroup: activeGroup,
+              activeGroup: _activeGroup,
               glow: widget.glow,
               width: widget.figureWidth,
-              onHover: (group) => setState(() => _hoveredGroup = group),
+              onHover: (group) {
+                setState(() => _hoveredGroup = group);
+              },
               onSelect: (group) {
                 setState(() {
                   _selectedGroup = _selectedGroup == group ? null : group;
                 });
+                final value = _resolveValue(group);
                 widget.onSelectMuscle?.call(MuscleMapSelection(
                   group: group,
-                  value: widget.values[group],
+                  value: value,
                 ));
               },
             ),
+
+            // Tooltip overlay
+            if (_activeGroup != null)
+              Positioned(
+                left: _tooltipPosition.dx,
+                top: _tooltipPosition.dy,
+                child: _MuscleTooltip(
+                  group: _activeGroup!,
+                  value: _resolveValue(_activeGroup!),
+                ),
+              ),
           ],
         ),
         if (widget.showLegend) ...[
@@ -93,6 +115,62 @@ class _MuscleMapState extends State<MuscleMap> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Tooltip showing muscle group name and score.
+class _MuscleTooltip extends StatelessWidget {
+  final MuscleGroup group;
+  final MuscleMapValue? value;
+
+  const _MuscleTooltip({required this.group, this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = humanizeMuscleGroup(group);
+    final score = value?.value;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      constraints: const BoxConstraints(minWidth: 92),
+      decoration: BoxDecoration(
+        color: const Color(0xF20A0E16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x2E94A3B8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x80000000),
+            blurRadius: 34,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.02,
+              color: Color(0xFFF8FAFC),
+            ),
+          ),
+          if (score != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Score: ${score.round()}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFFCBD5E1),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

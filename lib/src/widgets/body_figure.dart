@@ -10,10 +10,18 @@ const Color _neutralEdge = Color(0xFF212c40);
 const Color _muscleDim = Color(0xFF3a465e);
 const Color _stroke = Color(0x99060a12);
 
+/// Hit-test result: which muscle was tapped and where.
+class MuscleHit {
+  final MuscleGroup group;
+  final Offset position;
+
+  const MuscleHit({required this.group, required this.position});
+}
+
 /// Low-level body figure renderer using [CustomPainter].
 ///
 /// Renders a single body diagram (front or back) with colored muscle overlays.
-class BodyFigure extends StatelessWidget {
+class BodyFigure extends StatefulWidget {
   final BodyDiagram diagram;
   final Map<MuscleGroup, MuscleMapValue> values;
   final PartValues? partValues;
@@ -44,37 +52,128 @@ class BodyFigure extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  State<BodyFigure> createState() => _BodyFigureState();
+}
+
+class _BodyFigureState extends State<BodyFigure> {
+  /// Parsed and transformed paths for hit testing.
+  final Map<MuscleGroup, Path> _hitPaths = {};
+  final Map<MuscleGroup, Offset> _muscleCenters = {};
+
+  void _rebuildHitPaths(Size size) {
+    _hitPaths.clear();
+    _muscleCenters.clear();
+
+    final diagram = widget.diagram;
     final vbParts = diagram.viewBox.split(RegExp(r'\s+'));
+    final vbX = double.parse(vbParts[0]);
+    final vbY = double.parse(vbParts[1]);
+    final vbW = double.parse(vbParts[2]);
+    final vbH = double.parse(vbParts[3]);
+
+    final scaleX = size.width / vbW;
+    final scaleY = size.height / vbH;
+    final s = min(scaleX, scaleY);
+
+    final offsetX = (size.width - vbW * s) / 2 - vbX * s;
+    final offsetY = (size.height - vbH * s) / 2 - vbY * s;
+
+    final matrix = Matrix4.identity();
+    matrix.setEntry(0, 3, offsetX);
+    matrix.setEntry(1, 3, offsetY);
+    // ignore: deprecated_member_use
+    matrix.scale(s);
+
+    final mirrorMatrix = Matrix4.identity();
+    mirrorMatrix.setEntry(0, 3, offsetX + 2 * diagram.centerX * s);
+    mirrorMatrix.setEntry(1, 3, offsetY);
+    // ignore: deprecated_member_use
+    mirrorMatrix.scale(-s, s);
+
+    for (final muscle in diagram.muscles) {
+      final path = SvgPathParser.parse(muscle.d);
+
+      // Left / center side
+      final leftPath = Path.from(path);
+      final leftMatrix = muscle.side == BodySide.CENTER ? matrix : matrix;
+      leftPath.transform(leftMatrix.storage);
+      _hitPaths[muscle.group] = leftPath;
+
+      final bounds = leftPath.getBounds();
+      _muscleCenters[muscle.group] = bounds.center;
+
+      // Right side (mirror)
+      if (muscle.side != BodySide.CENTER) {
+        final rightPath = Path.from(path);
+        rightPath.transform(mirrorMatrix.storage);
+        // Merge into existing or create
+        final existing = _hitPaths[muscle.group];
+        if (existing != null) {
+          final merged = Path.combine(PathOperation.union, existing, rightPath);
+          _hitPaths[muscle.group] = merged;
+          final mergedBounds = merged.getBounds();
+          _muscleCenters[muscle.group] = mergedBounds.center;
+        }
+      }
+    }
+  }
+
+  MuscleGroup? _hitTest(Offset localPosition) {
+    // Check in reverse order (topmost first)
+    final groups = widget.diagram.muscles.map((m) => m.group).toSet().toList();
+    for (var i = groups.length - 1; i >= 0; i--) {
+      final group = groups[i];
+      final path = _hitPaths[group];
+      if (path != null && path.contains(localPosition)) {
+        if (widget.visibleGroups.isEmpty || widget.visibleGroups.contains(group)) {
+          return group;
+        }
+      }
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vbParts = widget.diagram.viewBox.split(RegExp(r'\s+'));
     final vbW = double.parse(vbParts[2]);
     final vbH = double.parse(vbParts[3]);
     final aspectRatio = vbW / vbH;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final h = width / aspectRatio;
+        final h = widget.width / aspectRatio;
+        final size = Size(widget.width, h);
+
+        // Rebuild hit paths when size changes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_hitPaths.isEmpty) {
+            setState(() => _rebuildHitPaths(size));
+          }
+        });
+
         return SizedBox(
-          width: width,
+          width: widget.width,
           height: h,
           child: GestureDetector(
             onTapDown: _handleTap,
             onPanUpdate: _handlePan,
             child: MouseRegion(
               onHover: _handleMouse,
-              onExit: (_) => onHover?.call(null),
+              onExit: (_) => widget.onHover?.call(null),
               child: CustomPaint(
                 painter: _BodyFigurePainter(
-                  diagram: diagram,
-                  values: values,
-                  partValues: partValues,
-                  colorModel: colorModel,
-                  monochromeColor: monochromeColor,
-                  monochromeBaseColor: monochromeBaseColor,
-                  visibleGroups: visibleGroups,
-                  activeGroup: activeGroup,
-                  glow: glow,
+                  diagram: widget.diagram,
+                  values: widget.values,
+                  partValues: widget.partValues,
+                  colorModel: widget.colorModel,
+                  monochromeColor: widget.monochromeColor,
+                  monochromeBaseColor: widget.monochromeBaseColor,
+                  visibleGroups: widget.visibleGroups,
+                  activeGroup: widget.activeGroup,
+                  glow: widget.glow,
                 ),
-                size: Size(width, h),
+                size: size,
               ),
             ),
           ),
@@ -85,22 +184,17 @@ class BodyFigure extends StatelessWidget {
 
   void _handleTap(TapDownDetails details) {
     final group = _hitTest(details.localPosition);
-    if (group != null) onSelect?.call(group);
+    if (group != null) widget.onSelect?.call(group);
   }
 
   void _handlePan(DragUpdateDetails details) {
     final group = _hitTest(details.localPosition);
-    onHover?.call(group);
+    widget.onHover?.call(group);
   }
 
   void _handleMouse(PointerEvent details) {
     final group = _hitTest(details.localPosition);
-    onHover?.call(group);
-  }
-
-  MuscleGroup? _hitTest(Offset localPosition) {
-    // Simplified: return closest muscle group based on position
-    return null;
+    widget.onHover?.call(group);
   }
 }
 
@@ -148,23 +242,22 @@ class _BodyFigurePainter extends CustomPainter {
 
     final scaleX = size.width / vbW;
     final scaleY = size.height / vbH;
-    final scale = min(scaleX, scaleY);
+    final s = min(scaleX, scaleY);
 
-    final offsetX = (size.width - vbW * scale) / 2 - vbX * scale;
-    final offsetY = (size.height - vbH * scale) / 2 - vbY * scale;
+    final offsetX = (size.width - vbW * s) / 2 - vbX * s;
+    final offsetY = (size.height - vbH * s) / 2 - vbY * s;
 
     final matrix = Matrix4.identity();
     matrix.setEntry(0, 3, offsetX);
     matrix.setEntry(1, 3, offsetY);
     // ignore: deprecated_member_use
-    matrix.scale(scale);
+    matrix.scale(s);
 
-    // Mirror matrix for RIGHT side paths
     final mirrorMatrix = Matrix4.identity();
-    mirrorMatrix.setEntry(0, 3, offsetX + 2 * diagram.centerX * scale);
+    mirrorMatrix.setEntry(0, 3, offsetX + 2 * diagram.centerX * s);
     mirrorMatrix.setEntry(1, 3, offsetY);
     // ignore: deprecated_member_use
-    mirrorMatrix.scale(-scale, scale);
+    mirrorMatrix.scale(-s, s);
 
     // 1. Draw neutral silhouette
     final basePaint = Paint()
