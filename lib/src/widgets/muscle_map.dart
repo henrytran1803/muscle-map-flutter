@@ -43,12 +43,14 @@ class MuscleMap extends StatefulWidget {
 }
 
 class _MuscleMapState extends State<MuscleMap> {
-  MuscleGroup? _hoveredGroup;
-  MuscleGroup? _selectedGroup;
-  Offset _tooltipPosition = Offset.zero;
-  final GlobalKey _figureKey = GlobalKey();
+  MuscleHit? _hoverHit;
+  MuscleHit? _selectHit;
 
-  MuscleGroup? get _activeGroup => _selectedGroup ?? _hoveredGroup;
+  MuscleGroup? get _activeGroup => _selectHit?.group ?? _hoverHit?.group;
+  Offset? get _tooltipPosition {
+    final hit = _selectHit ?? _hoverHit;
+    return hit?.center;
+  }
 
   MuscleMapValue? _resolveValue(MuscleGroup group) {
     return widget.values[group];
@@ -62,47 +64,33 @@ class _MuscleMapState extends State<MuscleMap> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Stack(
-          children: [
-            // Body figure
-            BodyFigure(
-              key: _figureKey,
-              diagram: diagram,
-              values: widget.values,
-              partValues: widget.partValues,
-              colorModel: widget.colorModel,
-              monochromeColor: widget.monochromeColor,
-              monochromeBaseColor: widget.monochromeBaseColor,
-              visibleGroups: visibleGroups.toSet(),
-              activeGroup: _activeGroup,
-              glow: widget.glow,
-              width: widget.figureWidth,
-              onHover: (group) {
-                setState(() => _hoveredGroup = group);
-              },
-              onSelect: (group) {
-                setState(() {
-                  _selectedGroup = _selectedGroup == group ? null : group;
-                });
-                final value = _resolveValue(group);
-                widget.onSelectMuscle?.call(MuscleMapSelection(
-                  group: group,
-                  value: value,
-                ));
-              },
-            ),
-
-            // Tooltip overlay
-            if (_activeGroup != null)
-              Positioned(
-                left: _tooltipPosition.dx,
-                top: _tooltipPosition.dy,
-                child: _MuscleTooltip(
-                  group: _activeGroup!,
-                  value: _resolveValue(_activeGroup!),
-                ),
-              ),
-          ],
+        BodyFigure(
+          diagram: diagram,
+          values: widget.values,
+          partValues: widget.partValues,
+          colorModel: widget.colorModel,
+          monochromeColor: widget.monochromeColor,
+          monochromeBaseColor: widget.monochromeBaseColor,
+          visibleGroups: visibleGroups.toSet(),
+          activeGroup: _activeGroup,
+          glow: widget.glow,
+          width: widget.figureWidth,
+          onHover: (hit) {
+            setState(() => _hoverHit = hit);
+          },
+          onSelect: (hit) {
+            setState(() {
+              if (_selectHit?.group == hit.group) {
+                _selectHit = null;
+              } else {
+                _selectHit = hit;
+              }
+            });
+            widget.onSelectMuscle?.call(MuscleMapSelection(
+              group: hit.group,
+              value: _resolveValue(hit.group),
+            ));
+          },
         ),
         if (widget.showLegend) ...[
           const SizedBox(height: 18),
@@ -114,6 +102,15 @@ class _MuscleMapState extends State<MuscleMap> {
             maxLabel: widget.legendMaxLabel,
           ),
         ],
+        // Tooltip below the figure
+        if (_activeGroup != null && _tooltipPosition != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _MuscleTooltip(
+              group: _activeGroup!,
+              value: _resolveValue(_activeGroup!),
+            ),
+          ),
       ],
     );
   }

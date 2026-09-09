@@ -10,17 +10,15 @@ const Color _neutralEdge = Color(0xFF212c40);
 const Color _muscleDim = Color(0xFF3a465e);
 const Color _stroke = Color(0x99060a12);
 
-/// Hit-test result: which muscle was tapped and where.
+/// Hit-test result: which muscle was tapped and its center position.
 class MuscleHit {
   final MuscleGroup group;
-  final Offset position;
+  final Offset center;
 
-  const MuscleHit({required this.group, required this.position});
+  const MuscleHit({required this.group, required this.center});
 }
 
 /// Low-level body figure renderer using [CustomPainter].
-///
-/// Renders a single body diagram (front or back) with colored muscle overlays.
 class BodyFigure extends StatefulWidget {
   final BodyDiagram diagram;
   final Map<MuscleGroup, MuscleMapValue> values;
@@ -32,8 +30,8 @@ class BodyFigure extends StatefulWidget {
   final MuscleGroup? activeGroup;
   final bool glow;
   final double width;
-  final ValueChanged<MuscleGroup?>? onHover;
-  final ValueChanged<MuscleGroup>? onSelect;
+  final ValueChanged<MuscleHit?>? onHover;
+  final ValueChanged<MuscleHit>? onSelect;
 
   const BodyFigure({
     super.key,
@@ -56,7 +54,6 @@ class BodyFigure extends StatefulWidget {
 }
 
 class _BodyFigureState extends State<BodyFigure> {
-  /// Parsed and transformed paths for hit testing.
   final Map<MuscleGroup, Path> _hitPaths = {};
   final Map<MuscleGroup, Offset> _muscleCenters = {};
 
@@ -93,40 +90,35 @@ class _BodyFigureState extends State<BodyFigure> {
     for (final muscle in diagram.muscles) {
       final path = SvgPathParser.parse(muscle.d);
 
-      // Left / center side
       final leftPath = Path.from(path);
-      final leftMatrix = muscle.side == BodySide.CENTER ? matrix : matrix;
-      leftPath.transform(leftMatrix.storage);
+      leftPath.transform(matrix.storage);
       _hitPaths[muscle.group] = leftPath;
+      _muscleCenters[muscle.group] = leftPath.getBounds().center;
 
-      final bounds = leftPath.getBounds();
-      _muscleCenters[muscle.group] = bounds.center;
-
-      // Right side (mirror)
       if (muscle.side != BodySide.CENTER) {
         final rightPath = Path.from(path);
         rightPath.transform(mirrorMatrix.storage);
-        // Merge into existing or create
         final existing = _hitPaths[muscle.group];
         if (existing != null) {
           final merged = Path.combine(PathOperation.union, existing, rightPath);
           _hitPaths[muscle.group] = merged;
-          final mergedBounds = merged.getBounds();
-          _muscleCenters[muscle.group] = mergedBounds.center;
+          _muscleCenters[muscle.group] = merged.getBounds().center;
         }
       }
     }
   }
 
-  MuscleGroup? _hitTest(Offset localPosition) {
-    // Check in reverse order (topmost first)
+  MuscleHit? _hitTest(Offset localPosition) {
     final groups = widget.diagram.muscles.map((m) => m.group).toSet().toList();
     for (var i = groups.length - 1; i >= 0; i--) {
       final group = groups[i];
       final path = _hitPaths[group];
       if (path != null && path.contains(localPosition)) {
         if (widget.visibleGroups.isEmpty || widget.visibleGroups.contains(group)) {
-          return group;
+          return MuscleHit(
+            group: group,
+            center: _muscleCenters[group] ?? localPosition,
+          );
         }
       }
     }
@@ -145,7 +137,6 @@ class _BodyFigureState extends State<BodyFigure> {
         final h = widget.width / aspectRatio;
         final size = Size(widget.width, h);
 
-        // Rebuild hit paths when size changes
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_hitPaths.isEmpty) {
             setState(() => _rebuildHitPaths(size));
@@ -183,18 +174,18 @@ class _BodyFigureState extends State<BodyFigure> {
   }
 
   void _handleTap(TapDownDetails details) {
-    final group = _hitTest(details.localPosition);
-    if (group != null) widget.onSelect?.call(group);
+    final hit = _hitTest(details.localPosition);
+    if (hit != null) widget.onSelect?.call(hit);
   }
 
   void _handlePan(DragUpdateDetails details) {
-    final group = _hitTest(details.localPosition);
-    widget.onHover?.call(group);
+    final hit = _hitTest(details.localPosition);
+    widget.onHover?.call(hit);
   }
 
   void _handleMouse(PointerEvent details) {
-    final group = _hitTest(details.localPosition);
-    widget.onHover?.call(group);
+    final hit = _hitTest(details.localPosition);
+    widget.onHover?.call(hit);
   }
 }
 
@@ -364,7 +355,6 @@ class _BodyFigurePainter extends CustomPainter {
       canvas.transform(m.mirrored ? mirrorMatrix.storage : matrix.storage);
       canvas.drawPath(path, paint);
 
-      // Stroke
       final strokePaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = isActive ? 1.6 : 0.8
