@@ -17,6 +17,7 @@ class SvgPathParser {
 
   Path _parse() {
     final path = Path();
+    path.fillType = PathFillType.evenOdd;
     _pos = 0;
     String? command;
 
