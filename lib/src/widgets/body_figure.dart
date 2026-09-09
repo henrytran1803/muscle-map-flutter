@@ -116,9 +116,11 @@ class _BodyFigureState extends State<BodyFigure> {
       final group = groups[i];
       final path = _hitPaths[group];
       if (path != null) {
+        final bounds = path.getBounds();
+        final inBounds = bounds.contains(localPosition);
         final contains = path.contains(localPosition);
-        if (contains) {
-          debugPrint('[MuscleMap] HIT: $group');
+        if (i == groups.length - 1 || inBounds) {
+          debugPrint('[MuscleMap]   $group bounds=$bounds inBounds=$inBounds contains=$contains');
         }
         if (contains && (widget.visibleGroups.isEmpty || widget.visibleGroups.contains(group))) {
           return MuscleHit(
