@@ -1,7 +1,19 @@
 name: muscle_map_flutter
-description: Muscle heatmap visualization widget for Flutter. Renders front/back body diagrams with colored muscle overlays.
+description: >-
+  Muscle heatmap visualization widget for Flutter. Renders front/back body
+  diagrams with colored muscle overlays using CustomPainter. Supports multiple
+  color models, per-surface value overrides, and interactive tooltips.
 version: 0.1.0
-homepage: https://github.com/MuscleMap/MuscleMap
+homepage: https://github.com/henrytran1803/muscle-map-flutter
+repository: https://github.com/henrytran1803/muscle-map-flutter
+issue_tracker: https://github.com/henrytran1803/muscle-map-flutter/issues
+
+topics:
+  - muscle
+  - heatmap
+  - visualization
+  - health
+  - fitness
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

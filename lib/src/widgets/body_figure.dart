@@ -258,7 +258,7 @@ class _BodyFigurePainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [_neutralBase, _neutralEdge],
+        colors: const [_neutralBase, _neutralEdge],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     for (final part in diagram.outline) {
