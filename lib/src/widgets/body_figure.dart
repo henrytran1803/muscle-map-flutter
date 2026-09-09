@@ -91,14 +91,21 @@ class _BodyFigureState extends State<BodyFigure> {
       final path = SvgPathParser.parse(muscle.d);
 
       final leftPath = path.transform(matrix.storage);
-      _hitPaths[muscle.group] = leftPath;
-      _muscleCenters[muscle.group] = leftPath.getBounds().center;
+      final existing = _hitPaths[muscle.group];
+      if (existing != null) {
+        final merged = Path.combine(PathOperation.union, existing, leftPath);
+        _hitPaths[muscle.group] = merged;
+        _muscleCenters[muscle.group] = merged.getBounds().center;
+      } else {
+        _hitPaths[muscle.group] = leftPath;
+        _muscleCenters[muscle.group] = leftPath.getBounds().center;
+      }
 
       if (muscle.side != BodySide.CENTER) {
         final rightPath = path.transform(mirrorMatrix.storage);
-        final existing = _hitPaths[muscle.group];
-        if (existing != null) {
-          final merged = Path.combine(PathOperation.union, existing, rightPath);
+        final current = _hitPaths[muscle.group];
+        if (current != null) {
+          final merged = Path.combine(PathOperation.union, current, rightPath);
           _hitPaths[muscle.group] = merged;
           _muscleCenters[muscle.group] = merged.getBounds().center;
         }
