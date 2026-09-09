@@ -17,7 +17,7 @@ class MuscleGroupTree extends StatefulWidget {
     this.selectedGroup,
     required this.view,
     required this.onSelectGroup,
-    this.accentColor = const Color(0xFFF97316),
+    this.accentColor = const Color(0xFFEF4444),
     this.values,
   });
 
@@ -26,7 +26,7 @@ class MuscleGroupTree extends StatefulWidget {
 }
 
 class _MuscleGroupTreeState extends State<MuscleGroupTree> {
-  final Set<String> _expandedRegions = {'shoulder', 'arm', 'leg'};
+  final Set<String> _expandedRegions = {'shoulder', 'chest', 'arm', 'core', 'leg', 'glute'};
 
   @override
   Widget build(BuildContext context) {
@@ -89,16 +89,16 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
                       ? Icons.keyboard_arrow_down_rounded
                       : Icons.chevron_right_rounded,
                   size: 18,
-                  color: const Color(0xFF94A3B8),
+                  color: const Color(0xFF6B7280),
                 ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     regionName,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFCBD5E1),
+                      color: Color(0xFF1F2937),
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -106,14 +106,14 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0x1AFFFFFF),
+                    color: const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '${node.muscles.length}',
                     style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF64748B),
+                      fontSize: 11,
+                      color: Color(0xFF6B7280),
                     ),
                   ),
                 ),
@@ -138,11 +138,11 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? widget.accentColor.withAlpha(25)
+              ? widget.accentColor.withAlpha(15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: isSelected
-              ? Border.all(color: widget.accentColor.withAlpha(60), width: 1)
+              ? Border.all(color: widget.accentColor.withAlpha(50), width: 1)
               : null,
         ),
         child: Row(
@@ -151,7 +151,7 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
               width: 6,
               height: 6,
               decoration: BoxDecoration(
-                color: isSelected ? widget.accentColor : const Color(0xFF475569),
+                color: isSelected ? widget.accentColor : const Color(0xFFD1D5DB),
                 shape: BoxShape.circle,
               ),
             ),
@@ -160,11 +160,11 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
               child: Text(
                 meta.name,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected
                       ? widget.accentColor
-                      : const Color(0xFFE2E8F0),
+                      : const Color(0xFF374151),
                 ),
               ),
             ),
@@ -173,18 +173,18 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? widget.accentColor.withAlpha(30)
-                      : const Color(0x0DFFFFFF),
+                      ? widget.accentColor.withAlpha(20)
+                      : const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   '${score.round()}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: isSelected
                         ? widget.accentColor
-                        : const Color(0xFF64748B),
+                        : const Color(0xFF6B7280),
                   ),
                 ),
               ),
