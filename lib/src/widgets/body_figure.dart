@@ -104,23 +104,15 @@ class _BodyFigureState extends State<BodyFigure> {
         }
       }
     }
-    debugPrint('[MuscleMap] _rebuildHitPaths: ${_hitPaths.length} paths for ${diagram.id}');
   }
 
   MuscleHit? _hitTest(Offset localPosition) {
     final groups = widget.diagram.muscles.map((m) => m.group).toSet().toList();
-    debugPrint('[MuscleMap] _hitTest at $localPosition, ${groups.length} groups, ${_hitPaths.length} paths');
     for (var i = groups.length - 1; i >= 0; i--) {
       final group = groups[i];
       final path = _hitPaths[group];
-      if (path != null) {
-        final bounds = path.getBounds();
-        final inBounds = bounds.contains(localPosition);
-        final contains = path.contains(localPosition);
-        if (i == groups.length - 1 || inBounds) {
-          debugPrint('[MuscleMap]   $group bounds=$bounds inBounds=$inBounds contains=$contains');
-        }
-        if (contains && (widget.visibleGroups.isEmpty || widget.visibleGroups.contains(group))) {
+      if (path != null && path.contains(localPosition)) {
+        if (widget.visibleGroups.isEmpty || widget.visibleGroups.contains(group)) {
           return MuscleHit(
             group: group,
             center: _muscleCenters[group] ?? localPosition,
@@ -128,7 +120,6 @@ class _BodyFigureState extends State<BodyFigure> {
         }
       }
     }
-    debugPrint('[MuscleMap] No hit');
     return null;
   }
 
@@ -186,9 +177,7 @@ class _BodyFigureState extends State<BodyFigure> {
   }
 
   void _handleTap(TapDownDetails details) {
-    debugPrint('[MuscleMap] TAP at ${details.localPosition}');
     final hit = _hitTest(details.localPosition);
-    debugPrint('[MuscleMap] TAP result: ${hit?.group}');
     if (hit != null) widget.onSelect?.call(hit);
   }
 
