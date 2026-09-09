@@ -354,7 +354,9 @@ class _BodyFigurePainter extends CustomPainter {
 
       final paint = Paint()..style = PaintingStyle.fill;
 
-      if (m.color != null) {
+      if (isActive && activeColor != null) {
+        paint.color = activeColor!;
+      } else if (m.color != null) {
         paint.shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
