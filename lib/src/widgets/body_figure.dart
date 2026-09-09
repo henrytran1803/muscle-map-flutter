@@ -10,7 +10,6 @@ const Color _neutralEdge = Color(0xFF212c40);
 const Color _muscleDim = Color(0xFF3a465e);
 const Color _stroke = Color(0x99060a12);
 
-/// Hit-test result: which muscle was tapped and its center position.
 class MuscleHit {
   final MuscleGroup group;
   final Offset center;
@@ -18,7 +17,6 @@ class MuscleHit {
   const MuscleHit({required this.group, required this.center});
 }
 
-/// Low-level body figure renderer using [CustomPainter].
 class BodyFigure extends StatefulWidget {
   final BodyDiagram diagram;
   final Map<MuscleGroup, MuscleMapValue> values;
@@ -56,6 +54,8 @@ class BodyFigure extends StatefulWidget {
 class _BodyFigureState extends State<BodyFigure> {
   final Map<MuscleGroup, Path> _hitPaths = {};
   final Map<MuscleGroup, Offset> _muscleCenters = {};
+  String? _lastDiagramId;
+  double _lastWidth = 0;
 
   void _rebuildHitPaths(Size size) {
     _hitPaths.clear();
@@ -137,11 +137,16 @@ class _BodyFigureState extends State<BodyFigure> {
         final h = widget.width / aspectRatio;
         final size = Size(widget.width, h);
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_hitPaths.isEmpty) {
-            setState(() => _rebuildHitPaths(size));
-          }
-        });
+        // Rebuild hit paths when diagram or size changes
+        if (widget.diagram.id != _lastDiagramId || widget.width != _lastWidth) {
+          _lastDiagramId = widget.diagram.id;
+          _lastWidth = widget.width;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _rebuildHitPaths(size);
+            }
+          });
+        }
 
         return SizedBox(
           width: widget.width,
@@ -345,7 +350,7 @@ class _BodyFigurePainter extends CustomPainter {
             m.color!,
             _shadeColor(m.color!, -0.28),
           ],
-          stops: const [0.0, 0.55, 1.0],
+          stops: const [0.0, 0.55, 1.1],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
       } else {
         paint.color = _muscleDim;
