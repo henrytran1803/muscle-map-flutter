@@ -15,3 +15,4 @@ export 'src/assets/index.dart';
 export 'src/widgets/body_figure.dart';
 export 'src/widgets/muscle_map.dart';
 export 'src/widgets/muscle_map_legend.dart';
+export 'src/widgets/muscle_group_tree.dart';

@@ -4,6 +4,7 @@ import '../core/muscle_meta.dart';
 import '../assets/index.dart';
 import 'body_figure.dart';
 import 'muscle_map_legend.dart';
+import 'muscle_group_tree.dart';
 
 /// Main muscle map widget showing front/back body diagrams with colored overlays.
 class MuscleMap extends StatefulWidget {
@@ -21,6 +22,13 @@ class MuscleMap extends StatefulWidget {
   final String? legendMaxLabel;
   final ValueChanged<MuscleMapSelection>? onSelectMuscle;
 
+  /// When true, shows a tree selector below the body figure.
+  final bool showTree;
+
+  /// Color used to highlight the active muscle group on the body figure.
+  /// Defaults to red-orange when [showTree] is true.
+  final Color? highlightColor;
+
   const MuscleMap({
     super.key,
     required this.values,
@@ -36,6 +44,8 @@ class MuscleMap extends StatefulWidget {
     this.legendMinLabel,
     this.legendMaxLabel,
     this.onSelectMuscle,
+    this.showTree = false,
+    this.highlightColor,
   });
 
   @override
@@ -44,54 +54,90 @@ class MuscleMap extends StatefulWidget {
 
 class _MuscleMapState extends State<MuscleMap> {
   MuscleHit? _hoverHit;
-  MuscleHit? _selectHit;
+  MuscleGroup? _treeSelectedGroup;
 
-  MuscleGroup? get _activeGroup => _selectHit?.group ?? _hoverHit?.group;
-  Offset? get _tooltipPosition {
-    final hit = _selectHit ?? _hoverHit;
-    return hit?.center;
-  }
+  MuscleGroup? get _activeGroup =>
+      _treeSelectedGroup ?? _selectHit?.group ?? _hoverHit?.group;
+  MuscleHit? get _selectHit => _hoverHit;
 
   MuscleMapValue? _resolveValue(MuscleGroup group) {
     return widget.values[group];
   }
+
+  Color get _effectiveHighlightColor =>
+      widget.highlightColor ?? const Color(0xFFF97316);
 
   @override
   Widget build(BuildContext context) {
     final diagram = getBodyDiagram(widget.sex, widget.view);
     final visibleGroups = getVisibleMuscleGroups(view: widget.view);
 
+    final bodyFigure = BodyFigure(
+      diagram: diagram,
+      values: widget.values,
+      partValues: widget.partValues,
+      colorModel: widget.colorModel,
+      monochromeColor: widget.monochromeColor,
+      monochromeBaseColor: widget.monochromeBaseColor,
+      visibleGroups: visibleGroups.toSet(),
+      activeGroup: _activeGroup,
+      activeColor: widget.showTree ? _effectiveHighlightColor : null,
+      glow: widget.glow,
+      width: widget.figureWidth,
+      onHover: (hit) {
+        setState(() => _hoverHit = hit);
+      },
+      onSelect: (hit) {
+        if (widget.showTree) {
+          setState(() => _treeSelectedGroup = hit.group);
+        }
+        widget.onSelectMuscle?.call(MuscleMapSelection(
+          group: hit.group,
+          value: _resolveValue(hit.group),
+        ));
+      },
+    );
+
+    if (widget.showTree) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          bodyFigure,
+          if (widget.showLegend) ...[
+            const SizedBox(height: 12),
+            MuscleMapLegend(
+              colorModel: widget.colorModel,
+              monochromeColor: widget.monochromeColor,
+              monochromeBaseColor: widget.monochromeBaseColor,
+              minLabel: widget.legendMinLabel,
+              maxLabel: widget.legendMaxLabel,
+            ),
+          ],
+          const SizedBox(height: 16),
+          MuscleGroupTree(
+            selectedGroup: _treeSelectedGroup,
+            view: widget.view,
+            values: widget.values,
+            accentColor: _effectiveHighlightColor,
+            onSelectGroup: (group) {
+              setState(() {
+                _treeSelectedGroup =
+                    _treeSelectedGroup == group ? null : group;
+              });
+              widget.onSelectMuscle?.call(MuscleMapSelection(
+                group: group,
+                value: _resolveValue(group),
+              ));
+            },
+          ),
+        ],
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        BodyFigure(
-          diagram: diagram,
-          values: widget.values,
-          partValues: widget.partValues,
-          colorModel: widget.colorModel,
-          monochromeColor: widget.monochromeColor,
-          monochromeBaseColor: widget.monochromeBaseColor,
-          visibleGroups: visibleGroups.toSet(),
-          activeGroup: _activeGroup,
-          glow: widget.glow,
-          width: widget.figureWidth,
-          onHover: (hit) {
-            setState(() => _hoverHit = hit);
-          },
-          onSelect: (hit) {
-            setState(() {
-              if (_selectHit?.group == hit.group) {
-                _selectHit = null;
-              } else {
-                _selectHit = hit;
-              }
-            });
-            widget.onSelectMuscle?.call(MuscleMapSelection(
-              group: hit.group,
-              value: _resolveValue(hit.group),
-            ));
-          },
-        ),
+        bodyFigure,
         if (widget.showLegend) ...[
           const SizedBox(height: 18),
           MuscleMapLegend(
@@ -102,8 +148,7 @@ class _MuscleMapState extends State<MuscleMap> {
             maxLabel: widget.legendMaxLabel,
           ),
         ],
-        // Tooltip below the figure
-        if (_activeGroup != null && _tooltipPosition != null)
+        if (_activeGroup != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: _MuscleTooltip(

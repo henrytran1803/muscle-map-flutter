@@ -26,6 +26,10 @@ class BodyFigure extends StatefulWidget {
   final Color? monochromeBaseColor;
   final Set<MuscleGroup> visibleGroups;
   final MuscleGroup? activeGroup;
+
+  /// Color for the active group stroke and fill highlight. Defaults to white.
+  final Color? activeColor;
+
   final bool glow;
   final double width;
   final ValueChanged<MuscleHit?>? onHover;
@@ -41,6 +45,7 @@ class BodyFigure extends StatefulWidget {
     this.monochromeBaseColor,
     this.visibleGroups = const {},
     this.activeGroup,
+    this.activeColor,
     this.glow = true,
     this.width = 200,
     this.onHover,
@@ -172,6 +177,7 @@ class _BodyFigureState extends State<BodyFigure> {
                   monochromeBaseColor: widget.monochromeBaseColor,
                   visibleGroups: widget.visibleGroups,
                   activeGroup: widget.activeGroup,
+                  activeColor: widget.activeColor,
                   glow: widget.glow,
                 ),
                 size: size,
@@ -208,6 +214,7 @@ class _BodyFigurePainter extends CustomPainter {
   final Color? monochromeBaseColor;
   final Set<MuscleGroup> visibleGroups;
   final MuscleGroup? activeGroup;
+  final Color? activeColor;
   final bool glow;
 
   _BodyFigurePainter({
@@ -219,6 +226,7 @@ class _BodyFigurePainter extends CustomPainter {
     this.monochromeBaseColor,
     required this.visibleGroups,
     this.activeGroup,
+    this.activeColor,
     required this.glow,
   });
 
@@ -368,7 +376,9 @@ class _BodyFigurePainter extends CustomPainter {
       final strokePaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = isActive ? 1.6 : 0.8
-        ..color = isActive ? const Color(0xFFF1F5F9) : _stroke;
+        ..color = isActive
+            ? (activeColor ?? const Color(0xFFF1F5F9))
+            : _stroke;
       canvas.drawPath(path, strokePaint);
       canvas.restore();
     }
@@ -388,6 +398,7 @@ class _BodyFigurePainter extends CustomPainter {
       oldDelegate.colorModel != colorModel ||
       oldDelegate.monochromeColor != monochromeColor ||
       oldDelegate.activeGroup != activeGroup ||
+      oldDelegate.activeColor != activeColor ||
       oldDelegate.glow != glow;
 }
 
