@@ -29,6 +29,9 @@ class MuscleMap extends StatefulWidget {
   /// Defaults to red-orange when [showTree] is true.
   final Color? highlightColor;
 
+  /// Externally controlled active group (for when tree is outside MuscleMap).
+  final MuscleGroup? activeGroup;
+
   const MuscleMap({
     super.key,
     required this.values,
@@ -46,6 +49,7 @@ class MuscleMap extends StatefulWidget {
     this.onSelectMuscle,
     this.showTree = false,
     this.highlightColor,
+    this.activeGroup,
   });
 
   @override
@@ -57,7 +61,7 @@ class _MuscleMapState extends State<MuscleMap> {
   MuscleGroup? _treeSelectedGroup;
 
   MuscleGroup? get _activeGroup =>
-      _treeSelectedGroup ?? _selectHit?.group ?? _hoverHit?.group;
+      widget.activeGroup ?? _treeSelectedGroup ?? _selectHit?.group ?? _hoverHit?.group;
   MuscleHit? get _selectHit => _hoverHit;
 
   MuscleMapValue? _resolveValue(MuscleGroup group) {
@@ -81,7 +85,7 @@ class _MuscleMapState extends State<MuscleMap> {
       monochromeBaseColor: widget.monochromeBaseColor,
       visibleGroups: visibleGroups.toSet(),
       activeGroup: _activeGroup,
-      activeColor: widget.showTree ? _effectiveHighlightColor : null,
+      activeColor: (widget.showTree || widget.activeGroup != null) ? _effectiveHighlightColor : null,
       glow: widget.glow,
       width: widget.figureWidth,
       onHover: (hit) {
