@@ -86,34 +86,18 @@ class _BodyFigureState extends State<BodyFigure> {
     // ignore: deprecated_member_use
     matrix.scale(s);
 
-    final mirrorMatrix = Matrix4.identity();
-    mirrorMatrix.setEntry(0, 3, offsetX + 2 * diagram.centerX * s);
-    mirrorMatrix.setEntry(1, 3, offsetY);
-    // ignore: deprecated_member_use
-    mirrorMatrix.scale(-s, s);
-
     for (final muscle in diagram.muscles) {
       final path = SvgPathParser.parse(muscle.d);
 
-      final leftPath = path.transform(matrix.storage);
+      final transformed = path.transform(matrix.storage);
       final existing = _hitPaths[muscle.group];
       if (existing != null) {
-        final merged = Path.combine(PathOperation.union, existing, leftPath);
+        final merged = Path.combine(PathOperation.union, existing, transformed);
         _hitPaths[muscle.group] = merged;
         _muscleCenters[muscle.group] = merged.getBounds().center;
       } else {
-        _hitPaths[muscle.group] = leftPath;
-        _muscleCenters[muscle.group] = leftPath.getBounds().center;
-      }
-
-      if (muscle.side != BodySide.CENTER) {
-        final rightPath = path.transform(mirrorMatrix.storage);
-        final current = _hitPaths[muscle.group];
-        if (current != null) {
-          final merged = Path.combine(PathOperation.union, current, rightPath);
-          _hitPaths[muscle.group] = merged;
-          _muscleCenters[muscle.group] = merged.getBounds().center;
-        }
+        _hitPaths[muscle.group] = transformed;
+        _muscleCenters[muscle.group] = transformed.getBounds().center;
       }
     }
   }
@@ -262,12 +246,6 @@ class _BodyFigurePainter extends CustomPainter {
     // ignore: deprecated_member_use
     matrix.scale(s);
 
-    final mirrorMatrix = Matrix4.identity();
-    mirrorMatrix.setEntry(0, 3, offsetX + 2 * diagram.centerX * s);
-    mirrorMatrix.setEntry(1, 3, offsetY);
-    // ignore: deprecated_member_use
-    mirrorMatrix.scale(-s, s);
-
     // 1. Draw neutral silhouette
     final basePaint = Paint()
       ..shader = LinearGradient(
@@ -284,34 +262,17 @@ class _BodyFigurePainter extends CustomPainter {
       canvas.restore();
     }
 
-    // 2. Build muscle render list (deduplicate by group)
+    // 2. Build muscle render list
+    // Diagrams already define both LEFT and RIGHT explicitly — no mirroring needed.
+    // Multiple paths per group are allowed (sub-regions like rear/side deltoid).
     final muscles = <_RenderMuscle>[];
-    final seenGroups = <MuscleGroup>{};
     for (final muscle in diagram.muscles) {
-      if (seenGroups.contains(muscle.group)) continue;
-      seenGroups.add(muscle.group);
-      if (muscle.side == BodySide.CENTER) {
-        muscles.add(_RenderMuscle(
-          group: muscle.group,
-          partId: muscle.id,
-          pathData: muscle.d,
-          mirrored: false,
-        ));
-      } else {
-        final rightId = muscle.id?.replaceAll('_LEFT', '_RIGHT');
-        muscles.add(_RenderMuscle(
-          group: muscle.group,
-          partId: muscle.id,
-          pathData: muscle.d,
-          mirrored: false,
-        ));
-        muscles.add(_RenderMuscle(
-          group: muscle.group,
-          partId: rightId,
-          pathData: muscle.d,
-          mirrored: true,
-        ));
-      }
+      muscles.add(_RenderMuscle(
+        group: muscle.group,
+        partId: muscle.id,
+        pathData: muscle.d,
+        mirrored: false,
+      ));
     }
 
     // 3. Resolve colors
@@ -341,9 +302,8 @@ class _BodyFigurePainter extends CustomPainter {
       for (final m in resolved) {
         if (m.color == null) continue;
         final path = SvgPathParser.parse(m.pathData);
-        final tm = m.mirrored ? mirrorMatrix : matrix;
         canvas.save();
-        canvas.transform(tm.storage);
+        canvas.transform(matrix.storage);
         glowPaint.color = m.color!.withValues(alpha: 0.3 + min(m.value, 100) / 100 * 0.6);
         canvas.drawPath(path, glowPaint);
         canvas.restore();
@@ -375,7 +335,7 @@ class _BodyFigurePainter extends CustomPainter {
       }
 
       canvas.save();
-      canvas.transform(m.mirrored ? mirrorMatrix.storage : matrix.storage);
+      canvas.transform(matrix.storage);
       canvas.drawPath(path, paint);
 
       final strokePaint = Paint()
