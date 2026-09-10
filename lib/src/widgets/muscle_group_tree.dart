@@ -4,7 +4,8 @@ import '../core/muscle_meta.dart';
 
 /// A tree-style selector for muscle groups, organized by body region.
 ///
-/// Tapping a muscle group highlights it on the body figure.
+/// Bilateral muscles (LEFT/RIGHT) are grouped under one name.
+/// Tapping highlights both sides on the body figure.
 class MuscleGroupTree extends StatefulWidget {
   final MuscleGroup? selectedGroup;
   final MuscleMapView view;
@@ -39,26 +40,29 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
   }
 
   List<_RegionNode> _buildRegionNodes() {
-    final Map<String, List<MuscleGroupMeta>> grouped = {};
+    // Group muscles by region, then by base name (strip _LEFT/_RIGHT)
+    final Map<String, Map<String, List<MuscleGroupMeta>>> regionMuscles = {};
     for (final meta in muscleGroupMeta) {
-      if (!meta.visibleByDefault) {
-        continue;
-      }
-      if (meta.regions.contains('glute') &&
-          widget.view == MuscleMapView.FRONT) {
-        continue;
-      }
+      if (!meta.visibleByDefault) continue;
+      if (meta.regions.contains('glute') && widget.view == MuscleMapView.FRONT) continue;
+
+      final baseName = meta.name;
       for (final region in meta.regions) {
-        grouped.putIfAbsent(region, () => []).add(meta);
+        regionMuscles.putIfAbsent(region, () => {});
+        regionMuscles[region]!.putIfAbsent(baseName, () => []).add(meta);
       }
     }
 
     final regionOrder = ['shoulder', 'chest', 'arm', 'core', 'leg', 'glute'];
     final nodes = <_RegionNode>[];
     for (final region in regionOrder) {
-      final muscles = grouped[region];
-      if (muscles == null || muscles.isEmpty) continue;
-      nodes.add(_RegionNode(region: region, muscles: muscles));
+      final byName = regionMuscles[region];
+      if (byName == null || byName.isEmpty) continue;
+      final items = byName.entries.map((e) => _MuscleItem(
+        name: e.key,
+        groups: e.value,
+      )).toList();
+      nodes.add(_RegionNode(region: region, items: items));
     }
     return nodes;
   }
@@ -110,7 +114,7 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${node.muscles.length}',
+                    '${node.items.length}',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF6B7280),
@@ -121,17 +125,17 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
             ),
           ),
         ),
-        if (isExpanded) ...node.muscles.map(_buildMuscleItem),
+        if (isExpanded) ...node.items.map(_buildMuscleItem),
       ],
     );
   }
 
-  Widget _buildMuscleItem(MuscleGroupMeta meta) {
-    final isSelected = widget.selectedGroup == meta.group;
-    final score = widget.values?[meta.group]?.value;
+  Widget _buildMuscleItem(_MuscleItem item) {
+    final isSelected = item.groups.any((g) => g.group == widget.selectedGroup);
+    final score = widget.values?[item.groups.first.group]?.value;
 
     return GestureDetector(
-      onTap: () => widget.onSelectGroup(meta.group),
+      onTap: () => widget.onSelectGroup(item.groups.first.group),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         margin: const EdgeInsets.only(left: 16, right: 8),
@@ -158,7 +162,7 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                meta.name,
+                item.name,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
@@ -197,7 +201,14 @@ class _MuscleGroupTreeState extends State<MuscleGroupTree> {
 
 class _RegionNode {
   final String region;
-  final List<MuscleGroupMeta> muscles;
+  final List<_MuscleItem> items;
 
-  const _RegionNode({required this.region, required this.muscles});
+  const _RegionNode({required this.region, required this.items});
+}
+
+class _MuscleItem {
+  final String name;
+  final List<MuscleGroupMeta> groups;
+
+  const _MuscleItem({required this.name, required this.groups});
 }

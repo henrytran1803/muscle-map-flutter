@@ -284,9 +284,12 @@ class _BodyFigurePainter extends CustomPainter {
       canvas.restore();
     }
 
-    // 2. Build muscle render list
+    // 2. Build muscle render list (deduplicate by group)
     final muscles = <_RenderMuscle>[];
+    final seenGroups = <MuscleGroup>{};
     for (final muscle in diagram.muscles) {
+      if (seenGroups.contains(muscle.group)) continue;
+      seenGroups.add(muscle.group);
       if (muscle.side == BodySide.CENTER) {
         muscles.add(_RenderMuscle(
           group: muscle.group,
